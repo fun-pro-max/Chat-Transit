@@ -1,0 +1,47 @@
+# render.yaml
+# Deploy both services with one click on Render
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+
+  # ── BACKEND — Web Service (Free tier) ──────────────────────────
+  - type: web
+    name: chat-transit-api
+    runtime: python
+    region: oregon           # Free tier available region
+    plan: free
+    rootDir: backend
+    buildCommand: "bash build.sh"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: /opt/render/project/.playwright
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # ── FRONTEND — Static Site (Free forever) ──────────────────────
+  - type: web
+    name: chat-transit-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    rootDir: frontend
+    buildCommand: ""          # No build step needed — pure HTML
+    staticPublishPath: .      # Serve from frontend/ root
+    headers:
+      - path: /sw.js
+        name: Cache-Control
+        value: no-store, no-cache, must-revalidate
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    autoDeploy: true

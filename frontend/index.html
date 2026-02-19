@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0c0f0a">
+<meta name="description" content="Move conversations between AI platforms. Convert ChatGPT share links into portable JSON, Markdown, and text files.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<title>CHAT TRANSIT — AI Memory Portability</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+
+<style>
+/* ══════════════════════════════════════════════
+   CHAT TRANSIT — Industrial Terminal Aesthetic
+   Phosphor green on matte black with scan lines
+   ══════════════════════════════════════════════ */
+
+:root {
+  --black:    #0c0f0a;
+  --dark:     #111410;
+  --mid:      #1a1e18;
+  --panel:    #1e2420;
+  --border:   #2a3028;
+  --border-g: #3a4838;
+  --green:    #4dff6e;
+  --green-d:  #2eb84d;
+  --green-dd: #1a7030;
+  --green-glow: rgba(77,255,110,0.12);
+  --amber:    #ffb347;
+  --amber-d:  #cc7a20;
+  --white:    #e8ede6;
+  --dim:      #7a8c78;
+  --dimmer:   #445042;
+  --mono: 'DM Mono', monospace;
+  --serif: 'Fraunces', Georgia, serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+
+body {
+  background: var(--black);
+  color: var(--white);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+  position: relative;
+}
+
+/* Scan lines overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Phosphor vignette */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5) 100%);
+  pointer-events: none;
+  z-index: 9;
+}
+
+/* ── SCROLLBAR ─────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--dark); }
+::-webkit-scrollbar-thumb { background: var(--border-g); border-radius: 3px; }
+
+/* ── TOP BAR ───────────────────────────────── */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 100;
+  height: 48px;
+  background: var(--black);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 0;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.logo-mark {
+  width: 24px; height: 24px;
+  border: 1.5px solid var(--green);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--green);
+  box-shadow: 0 0 8px var(--green-glow);
+  animation: blink-border 3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes blink-border {
+  0%, 90%, 100% { box-shadow: 0 0 8px var(--green-glow); }
+  95% { box-shadow: 0 0 0px transparent; }
+}
+
+.logo-text {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.topbar-center {
+  font-size: 10px;
+  color: var(--dimmer);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.topbar-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse-dot 2s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-text {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.1em;
+}
+
+/* ── MAIN LAYOUT ───────────────────────────── */
+.main {
+  padding-top: 48px;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+  max-width: 860px;
+  margin: 0 auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* ── HERO ──────────────────────────────────── */
+.hero {
+  padding: 72px 0 48px;
+  position: relative;
+}
+
+.hero-prompt {
+  font-size: 10px;
+  color: var(--green-d);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-prompt::before {
+  content: '>';
+  color: var(--green);
+  font-size: 13px;
+}
+
+.hero-title {
+  font-family: var(--serif);
+  font-size: clamp(40px, 7vw, 72px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  color: var(--white);
+}
+
+.hero-title em {
+  font-style: italic;
+  font-weight: 300;
+  color: var(--green);
+}
+
+.hero-sub {
+  font-size: 13px;
+  color: var(--dim);
+  line-height: 1.7;
+  max-width: 480px;
+  margin-top: 20px;
+  letter-spacing: 0.02em;
+}
+
+/* ── TERMINAL CARD ─────────────────────────── */
+.terminal {
+  background: var(--dark);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 32px;
+  overflow: hidden;
+  position: relative;
+}
+
+.term-header {
+  background: var(--mid);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.term-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.term-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.term-dot.r { background: #ff5f57; }
+.term-dot.y { background: #febc2e; }
+.term-dot.g { background: var(--green); }
+
+.term-title {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  flex: 1;
+  text-align: center;
+}
+
+.term-mode {
+  font-size: 9px;
+  color: var(--green-dd);
+  letter-spacing: 0.1em;
+}
+
+.term-body {
+  padding: 24px;
+}
+
+/* ── INPUT ROW ─────────────────────────────── */
+.input-row {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-g);
+  border-radius: 3px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-row:focus-within {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green), 0 0 20px var(--green-glow);
+}
+
+.input-row.error {
+  border-color: #ff5f57;
+  box-shadow: 0 0 0 1px #ff5f57, 0 0 16px rgba(255,95,87,0.15);
+}
+
+.input-prefix {
+  background: var(--panel);
+  border-right: 1px solid var(--border-g);
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--green);
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  user-select: none;
+}
+
+.url-input {
+  flex: 1;
+  background: var(--dark);
+  border: none;
+  outline: none;
+  padding: 13px 16px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--white);
+  caret-color: var(--green);
+  letter-spacing: 0.02em;
+}
+
+.url-input::placeholder { color: var(--dimmer); }
+
+.run-btn {
+  background: var(--green);
+  color: var(--black);
+  border: none;
+  padding: 0 24px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.run-btn:hover { background: #6fff87; box-shadow: 0 0 20px var(--green-glow); }
+.run-btn:active { background: var(--green-d); }
+.run-btn:disabled { background: var(--border-g); color: var(--dimmer); cursor: not-allowed; }
+
+/* ── ERROR MESSAGE ─────────────────────────── */
+.error-msg {
+  display: none;
+  font-size: 11px;
+  color: #ff5f57;
+  padding: 8px 12px;
+  background: rgba(255,95,87,0.06);
+  border: 1px solid rgba(255,95,87,0.2);
+  border-radius: 3px;
+  margin-bottom: 16px;
+  letter-spacing: 0.03em;
+}
+
+.error-msg.show { display: block; }
+.error-msg::before { content: '✗ '; }
+
+/* ── PROGRESS ──────────────────────────────── */
+.progress-wrap {
+  display: none;
+  margin-bottom: 4px;
+}
+
+.progress-wrap.show { display: block; }
+
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.pipe-step {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 10px 12px;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+.pipe-step::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--green-glow), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.pipe-step.active { border-color: var(--green); }
+.pipe-step.active::before { opacity: 1; animation: scan 1s linear infinite; }
+.pipe-step.done { border-color: var(--green-dd); background: rgba(46,184,77,0.04); }
+.pipe-step.done::before { opacity: 0; }
+
+@keyframes scan {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+.pipe-num {
+  font-size: 9px;
+  color: var(--dimmer);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+
+.pipe-step.active .pipe-num { color: var(--green); }
+.pipe-step.done .pipe-num { color: var(--green-dd); }
+
+.pipe-label {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pipe-step.active .pipe-label { color: var(--green); }
+.pipe-step.done .pipe-label { color: var(--green-d); }
+
+.pipe-status {
+  font-size: 9px;
+  color: var(--dimmer);
+  margin-top: 3px;
+}
+
+.pipe-step.active .pipe-status { color: var(--green-d); }
+.pipe-step.done .pipe-status { color: var(--green-dd); }
+.pipe-step.done .pipe-status::before { content: '✓ '; }
+
+.progress-bar-outer {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  height: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background: var(--green);
+  width: 0;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 8px var(--green);
+}
+
+.progress-log {
+  font-size: 11px;
+  color: var(--dim);
+  margin-top: 10px;
+  min-height: 18px;
+  letter-spacing: 0.03em;
+}
+
+.progress-log::before { content: '> '; color: var(--green); }
+
+/* ── RESULT ────────────────────────────────── */
+.result-section {
+  display: none;
+}
+.result-section.show { display: block; }
+
+.result-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.badge-ok {
+  background: var(--green);
+  color: var(--black);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+
+.badge-demo {
+  background: var(--amber-d);
+  color: var(--black);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+
+.result-topic {
+  font-size: 13px;
+  color: var(--white);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── STATS ROW ─────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.stat-box {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 3px;
+  padding: 14px 12px;
+  text-align: center;
+}
+
+.stat-val {
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--green);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-lbl {
+  font-size: 9px;
+  color: var(--dimmer);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ── SUMMARY BLOCK ─────────────────────────── */
+.summary-block {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 3px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.summary-label {
+  font-size: 9px;
+  color: var(--green-d);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary-label::before {
+  content: '';
+  width: 16px; height: 1px;
+  background: var(--green-d);
+}
+
+.summary-text {
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+}
+
+/* ── DOWNLOAD GRID ─────────────────────────── */
+.dl-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dl-item {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s;
+  background: var(--panel);
+}
+
+.dl-item:hover {
+  border-color: var(--green);
+  background: rgba(77,255,110,0.04);
+}
+
+.dl-ext {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 2px;
+  letter-spacing: 0.08em;
+  min-width: 46px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.dl-ext.json { background: rgba(77,255,110,0.12); color: var(--green-d); border: 1px solid var(--green-dd); }
+.dl-ext.md   { background: rgba(255,179,71,0.1);  color: var(--amber-d);  border: 1px solid #5a3a10; }
+.dl-ext.txt  { background: rgba(255,255,255,0.05); color: var(--dim);     border: 1px solid var(--border); }
+
+.dl-info { flex: 1; overflow: hidden; }
+.dl-name { font-size: 12px; color: var(--white); margin-bottom: 2px; }
+.dl-desc { font-size: 10px; color: var(--dimmer); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.dl-arrow { font-size: 14px; color: var(--dimmer); transition: color 0.15s; }
+.dl-item:hover .dl-arrow { color: var(--green); }
+
+/* ── ZIP BUTTON ────────────────────────────── */
+.zip-btn {
+  width: 100%;
+  padding: 15px 24px;
+  background: transparent;
+  border: 1px solid var(--green);
+  border-radius: 3px;
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.zip-btn:hover {
+  background: var(--green);
+  color: var(--black);
+  box-shadow: 0 0 30px var(--green-glow);
+}
+
+.zip-btn:active { background: var(--green-d); border-color: var(--green-d); }
+
+/* ── PREVIEW ───────────────────────────────── */
+.preview-section {
+  margin-top: 24px;
+}
+
+.preview-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+}
+
+.tab {
+  padding: 8px 16px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dimmer);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: var(--mono);
+}
+
+.tab:hover { color: var(--dim); }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+.preview-code {
+  background: var(--black);
+  border: 1px solid var(--border);
+  border-top: none;
+  padding: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 11px;
+  line-height: 1.75;
+  color: var(--dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 0 0 4px 4px;
+}
+
+/* ── INFO PANELS ───────────────────────────── */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 40px;
+  margin-bottom: 40px;
+}
+
+.info-panel {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 24px;
+}
+
+.info-heading {
+  font-size: 10px;
+  color: var(--green);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-heading::before {
+  content: '';
+  width: 12px; height: 1px;
+  background: var(--green);
+}
+
+.info-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info-list li {
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.5;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.info-list li::before {
+  content: '→';
+  color: var(--green-dd);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── FLOW ROW ──────────────────────────────── */
+.flow-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 32px;
+  margin-bottom: 48px;
+  position: relative;
+}
+
+.flow-row::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), var(--green-dd), var(--border));
+}
+
+.flow-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.flow-n {
+  width: 40px; height: 40px;
+  border: 1px solid var(--border-g);
+  background: var(--dark);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--green-d);
+}
+
+.flow-lbl {
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.05em;
+}
+
+/* ── FOOTER ────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 24px 0;
+  margin-top: 0;
+}
+
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--dimmer);
+  letter-spacing: 0.1em;
+}
+
+.footer-rules {
+  display: flex;
+  gap: 16px;
+}
+
+.footer-rules span { color: var(--green-dd); }
+.footer-rules span::before { content: '✓ '; }
+
+/* ── TOAST ─────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--panel);
+  border: 1px solid var(--green);
+  border-radius: 3px;
+  padding: 12px 18px;
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 0.05em;
+  z-index: 999;
+  transform: translateY(60px);
+  opacity: 0;
+  transition: all 0.25s ease;
+}
+
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* ── RESPONSIVE ────────────────────────────── */
+@media (max-width: 640px) {
+  .pipeline { grid-template-columns: repeat(2, 1fr); }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .dl-grid { grid-template-columns: 1fr; }
+  .info-grid { grid-template-columns: 1fr; }
+  .flow-row { grid-template-columns: repeat(2, 1fr); }
+  .flow-row::before { display: none; }
+  .topbar-center { display: none; }
+  .footer-rules { flex-direction: column; gap: 4px; }
+}
+
+/* ── ANIMATIONS ────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero { animation: fadeUp 0.6s ease both; }
+.terminal { animation: fadeUp 0.6s 0.15s ease both; }
+.info-grid { animation: fadeUp 0.6s 0.3s ease both; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark">⟶</div>
+    <span class="logo-text">Chat Transit</span>
+  </div>
+  <div class="topbar-center">AI MEMORY PORTABILITY TOOL / v1.0</div>
+  <div class="topbar-right">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-text" id="statusText">READY</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-prompt">Move conversations between AI platforms</div>
+    <h1 class="hero-title">Ideas deserve<br>to <em>transit</em> freely</h1>
+    <p class="hero-sub">
+      Paste a public ChatGPT share link. Get a structured Transit Package —
+      JSON, Markdown, summary, metadata — ready to import into Claude, Gemini,
+      Grok, or any AI.
+    </p>
+  </div>
+
+  <!-- TERMINAL CARD -->
+  <div class="terminal">
+    <div class="term-header">
+      <div class="term-dots">
+        <div class="term-dot r"></div>
+        <div class="term-dot y"></div>
+        <div class="term-dot g"></div>
+      </div>
+      <div class="term-title">transit-converter — bash</div>
+      <div class="term-mode" id="termMode">● DEMO</div>
+    </div>
+    <div class="term-body">
+
+      <!-- INPUT -->
+      <div class="input-row" id="inputRow">
+        <div class="input-prefix">$ transit --url</div>
+        <input
+          type="url"
+          class="url-input"
+          id="urlInput"
+          placeholder="https://chat.openai.com/share/..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="run-btn" id="runBtn" onclick="startConvert()">RUN</button>
+      </div>
+
+      <!-- ERROR -->
+      <div class="error-msg" id="errorMsg"></div>
+
+      <!-- PROGRESS -->
+      <div class="progress-wrap" id="progressWrap">
+        <div class="pipeline">
+          <div class="pipe-step" id="step0">
+            <div class="pipe-num">01</div>
+            <div class="pipe-label">Fetch</div>
+            <div class="pipe-status">Pending</div>
+          </div>
+          <div class="pipe-step" id="step1">
+            <div class="pipe-num">02</div>
+            <div class="pipe-label">Parse</div>
+            <div class="pipe-status">Pending</div>
+          </div>
+          <div class="pipe-step" id="step2">
+            <div class="pipe-num">03</div>
+            <div class="pipe-label">Normalize</div>
+            <div class="pipe-status">Pending</div>
+          </div>
+          <div class="pipe-step" id="step3">
+            <div class="pipe-num">04</div>
+            <div class="pipe-label">Package</div>
+            <div class="pipe-status">Pending</div>
+          </div>
+        </div>
+        <div class="progress-bar-outer">
+          <div class="progress-bar-inner" id="progBar"></div>
+        </div>
+        <div class="progress-log" id="progLog">Initializing pipeline…</div>
+      </div>
+
+      <!-- RESULT -->
+      <div class="result-section" id="resultSection">
+
+        <div class="result-banner">
+          <span class="badge-ok" id="resultBadge">TRANSIT READY</span>
+          <span class="result-topic" id="resultTopic">—</span>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-val" id="sMsgs">—</div>
+            <div class="stat-lbl">Messages</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="sTurns">—</div>
+            <div class="stat-lbl">User Turns</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="sCode">—</div>
+            <div class="stat-lbl">Code Blocks</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="sWords">—</div>
+            <div class="stat-lbl">Words</div>
+          </div>
+        </div>
+
+        <div class="summary-block">
+          <div class="summary-label">Auto Summary</div>
+          <div class="summary-text" id="summaryText">—</div>
+        </div>
+
+        <div class="dl-grid">
+          <a class="dl-item" id="dlJson" download="transit.json">
+            <span class="dl-ext json">.json</span>
+            <div class="dl-info">
+              <div class="dl-name">transit.json</div>
+              <div class="dl-desc">Structured API dataset with roles + code blocks</div>
+            </div>
+            <span class="dl-arrow">↓</span>
+          </a>
+          <a class="dl-item" id="dlMd" download="transit.md">
+            <span class="dl-ext md">.md</span>
+            <div class="dl-info">
+              <div class="dl-name">transit.md</div>
+              <div class="dl-desc">Clean readable Markdown conversation</div>
+            </div>
+            <span class="dl-arrow">↓</span>
+          </a>
+          <a class="dl-item" id="dlTxt" download="summary.txt">
+            <span class="dl-ext txt">.txt</span>
+            <div class="dl-info">
+              <div class="dl-name">summary.txt</div>
+              <div class="dl-desc">Context summary for session priming</div>
+            </div>
+            <span class="dl-arrow">↓</span>
+          </a>
+          <a class="dl-item" id="dlMeta" download="metadata.json">
+            <span class="dl-ext json">.json</span>
+            <div class="dl-info">
+              <div class="dl-name">metadata.json</div>
+              <div class="dl-desc">Source, timestamps, topic, word count</div>
+            </div>
+            <span class="dl-arrow">↓</span>
+          </a>
+        </div>
+
+        <button class="zip-btn" onclick="downloadZip()">
+          <span>↓</span> DOWNLOAD TRANSIT PACKAGE (.zip)
+        </button>
+
+        <!-- PREVIEW TABS -->
+        <div class="preview-section">
+          <div class="preview-tabs">
+            <button class="tab active" onclick="switchTab('json',this)">transit.json</button>
+            <button class="tab" onclick="switchTab('md',this)">transit.md</button>
+            <button class="tab" onclick="switchTab('txt',this)">summary.txt</button>
+            <button class="tab" onclick="switchTab('meta',this)">metadata.json</button>
+          </div>
+          <pre class="preview-code" id="previewCode"></pre>
+        </div>
+      </div>
+
+    </div><!-- /term-body -->
+  </div><!-- /terminal -->
+
+  <!-- HOW IT WORKS -->
+  <div style="margin-top: 48px;">
+    <div style="font-size: 10px; color: var(--green-d); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px;">Process</div>
+    <div style="font-family: var(--serif); font-size: 28px; font-weight: 700; color: var(--white); margin-bottom: 4px;">How Transit works</div>
+  </div>
+
+  <div class="flow-row">
+    <div class="flow-item">
+      <div class="flow-n">01</div>
+      <div class="flow-lbl">Paste public<br>ChatGPT link</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-n">02</div>
+      <div class="flow-lbl">Playwright renders<br>full JS page</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-n">03</div>
+      <div class="flow-lbl">Messages parsed,<br>noise removed</div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-n">04</div>
+      <div class="flow-lbl">Download 4-file<br>Transit Package</div>
+    </div>
+  </div>
+
+  <!-- INFO PANELS -->
+  <div class="info-grid">
+    <div class="info-panel">
+      <div class="info-heading">Output Package</div>
+      <ul class="info-list">
+        <li><strong>transit.json</strong> — Role-tagged messages with extracted code blocks. Feed directly into any LLM API.</li>
+        <li><strong>transit.md</strong> — Clean Markdown with speaker labels and code fences. Paste into any AI chat.</li>
+        <li><strong>summary.txt</strong> — Auto context summary for quick session priming without full conversation.</li>
+        <li><strong>metadata.json</strong> — Source URL, timestamps, topic, word count, provenance chain.</li>
+      </ul>
+    </div>
+    <div class="info-panel">
+      <div class="info-heading">Security Rules</div>
+      <ul class="info-list">
+        <li>Only public share links processed — no private chat access.</li>
+        <li>No authentication scraping — works only with openly shared URLs.</li>
+        <li>No server-side data retention — your conversations stay yours.</li>
+        <li>No link storage — each request is stateless and ephemeral.</li>
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- FOOTER -->
+<div style="max-width: 860px; margin: 0 auto; padding: 0 24px;">
+  <footer>
+    <div class="footer-inner">
+      <span>CHAT TRANSIT v1.0 / AI MEMORY PORTABILITY</span>
+      <div class="footer-rules">
+        <span>No data retained</span>
+        <span>Public links only</span>
+        <span>No auth scraping</span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- JSZip for client-side ZIP generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+// ⚠️ After deploying backend on Render, replace this URL with your actual backend URL
+// e.g. 'https://chat-transit-api.onrender.com'
+const API_BASE = 'https://chat-transit-api.onrender.com';
+let transitData = null;
+let activeTab = 'json';
+
+// ══════════════════════════════════════════════
+// VALIDATION
+// ══════════════════════════════════════════════
+function isValidUrl(url) {
+  return /^https?:\/\/(chat\.openai\.com|chatgpt\.com)\/(share|c)\/[a-zA-Z0-9\-]+/.test(url.trim());
+}
+
+// ══════════════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════════════
+function setStatus(text, active = false) {
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('statusDot').style.background = active ? 'var(--amber)' : 'var(--green)';
+  document.getElementById('statusDot').style.boxShadow = active
+    ? '0 0 8px var(--amber)' : '0 0 8px var(--green)';
+}
+
+function setStep(n, state, statusText = '') {
+  const el = document.getElementById(`step${n}`);
+  el.className = 'pipe-step ' + state;
+  const statusEl = el.querySelector('.pipe-status');
+  if (statusText) statusEl.textContent = statusText;
+  else if (state === 'done') statusEl.textContent = 'Complete';
+  else if (state === 'active') statusEl.textContent = 'Running…';
+}
+
+function setProgress(pct, log) {
+  document.getElementById('progBar').style.width = pct + '%';
+  document.getElementById('progLog').textContent = log;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('inputRow').classList.add('error');
+}
+
+function clearError() {
+  document.getElementById('errorMsg').classList.remove('show');
+  document.getElementById('inputRow').classList.remove('error');
+}
+
+function showToast(msg, dur = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ══════════════════════════════════════════════
+// MAIN CONVERT FLOW
+// ══════════════════════════════════════════════
+async function startConvert() {
+  const url = document.getElementById('urlInput').value.trim();
+  const btn = document.getElementById('runBtn');
+
+  clearError();
+  document.getElementById('resultSection').classList.remove('show');
+
+  if (!url) {
+    showError('Paste a ChatGPT share link to continue.');
+    return;
+  }
+
+  if (!isValidUrl(url)) {
+    showError('Only public ChatGPT share links accepted: chat.openai.com/share/... or chatgpt.com/c/...');
+    document.getElementById('inputRow').classList.add('error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '…';
+  setStatus('PROCESSING', true);
+
+  document.getElementById('progressWrap').classList.add('show');
+  [0,1,2,3].forEach(n => setStep(n, '', 'Pending'));
+
+  try {
+    await runPipeline(url);
+  } catch (err) {
+    const msg = err.message || 'Unexpected error. Is the backend running?';
+    showError(msg);
+    document.getElementById('progressWrap').classList.remove('show');
+    setStatus('ERROR');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'RUN';
+  }
+}
+
+async function runPipeline(url) {
+  // Step 0: Fetch
+  setStep(0, 'active');
+  setProgress(8, 'Sending URL to headless renderer…');
+  await delay(300);
+
+  let data;
+  try {
+    const res = await fetch(`${API_BASE}/api/convert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Server error ${res.status}`);
+    }
+
+    setStep(0, 'done');
+    setStep(1, 'active');
+    setProgress(35, 'Page rendered. Extracting conversation messages…');
+    await delay(250);
+
+    data = await res.json();
+
+  } catch (e) {
+    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+      throw new Error('Cannot reach backend. Start it with: uvicorn main:app --reload');
+    }
+    throw e;
+  }
+
+  setStep(1, 'done');
+  setStep(2, 'active');
+  setProgress(65, 'Normalizing content, stripping UI artifacts…');
+  await delay(250);
+
+  setStep(2, 'done');
+  setStep(3, 'active');
+  setProgress(88, 'Assembling Transit Package…');
+  await delay(250);
+
+  setStep(3, 'done');
+  setProgress(100, 'Package ready.');
+  setStatus('READY');
+
+  // Update demo mode indicator
+  if (data.stats?.demo) {
+    document.getElementById('termMode').textContent = '● DEMO';
+    document.getElementById('termMode').style.color = 'var(--amber-d)';
+    document.getElementById('resultBadge').textContent = 'DEMO PACKAGE';
+    document.getElementById('resultBadge').className = 'badge-demo';
+  } else {
+    document.getElementById('termMode').textContent = '● LIVE';
+    document.getElementById('termMode').style.color = 'var(--green-d)';
+    document.getElementById('resultBadge').textContent = 'TRANSIT READY';
+    document.getElementById('resultBadge').className = 'badge-ok';
+  }
+
+  transitData = data;
+  renderResult(data);
+}
+
+// ══════════════════════════════════════════════
+// RENDER RESULT
+// ══════════════════════════════════════════════
+function renderResult(data) {
+  const stats = data.stats || {};
+  const meta = data.metadata_json || {};
+
+  document.getElementById('sMsgs').textContent = stats.messages ?? '—';
+  document.getElementById('sTurns').textContent = stats.turns ?? '—';
+  document.getElementById('sCode').textContent = stats.code_blocks ?? '—';
+  document.getElementById('sWords').textContent = formatNum(stats.words);
+  document.getElementById('resultTopic').textContent = meta.topic || 'Conversation packaged';
+
+  // Summary preview (first 3 lines of summary)
+  const summaryLines = (data.summary_txt || '').split('\n').filter(l => l.trim()).slice(4, 10);
+  document.getElementById('summaryText').textContent = summaryLines.join(' · ') || data.summary_txt?.slice(0, 200);
+
+  // Setup download links
+  makeDownload('dlJson', JSON.stringify(data.transit_json, null, 2), 'application/json');
+  makeDownload('dlMd', data.transit_md, 'text/markdown');
+  makeDownload('dlTxt', data.summary_txt, 'text/plain');
+  makeDownload('dlMeta', JSON.stringify(data.metadata_json, null, 2), 'application/json');
+
+  // Preview
+  showPreview('json');
+
+  document.getElementById('resultSection').classList.add('show');
+  document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  showToast('✓ Transit Package ready');
+}
+
+function makeDownload(id, content, type) {
+  const el = document.getElementById(id);
+  const blob = new Blob([content], { type });
+  if (el._blobUrl) URL.revokeObjectURL(el._blobUrl);
+  el._blobUrl = URL.createObjectURL(blob);
+  el.href = el._blobUrl;
+}
+
+function formatNum(n) {
+  if (!n && n !== 0) return '—';
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+}
+
+// ══════════════════════════════════════════════
+// PREVIEW TABS
+// ══════════════════════════════════════════════
+function switchTab(tab, btn) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  showPreview(tab);
+}
+
+function showPreview(tab) {
+  if (!transitData) return;
+  const el = document.getElementById('previewCode');
+  const map = {
+    json: JSON.stringify(transitData.transit_json, null, 2),
+    md:   transitData.transit_md,
+    txt:  transitData.summary_txt,
+    meta: JSON.stringify(transitData.metadata_json, null, 2),
+  };
+  el.textContent = map[tab] || '';
+}
+
+// ══════════════════════════════════════════════
+// ZIP DOWNLOAD
+// ══════════════════════════════════════════════
+async function downloadZip() {
+  if (!transitData) { showToast('Run a conversion first.'); return; }
+
+  const zip = new JSZip();
+  const folder = zip.folder('transit_package');
+  folder.file('transit.json', JSON.stringify(transitData.transit_json, null, 2));
+  folder.file('transit.md', transitData.transit_md);
+  folder.file('summary.txt', transitData.summary_txt);
+  folder.file('metadata.json', JSON.stringify(transitData.metadata_json, null, 2));
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'transit_package.zip';
+  a.click();
+  showToast('↓ Downloading transit_package.zip');
+}
+
+// ══════════════════════════════════════════════
+// KEYBOARD
+// ══════════════════════════════════════════════
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startConvert();
+  document.getElementById('inputRow').classList.remove('error');
+  clearError();
+});
+
+// ══════════════════════════════════════════════
+// PWA SERVICE WORKER
+// ══════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ══════════════════════════════════════════════
+// CHECK BACKEND MODE ON LOAD
+// ══════════════════════════════════════════════
+(async () => {
+  try {
+    const res = await fetch(`${API_BASE}/health`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.mode === 'full') {
+        document.getElementById('termMode').textContent = '● LIVE';
+        document.getElementById('termMode').style.color = 'var(--green-d)';
+      }
+    }
+  } catch {
+    // Backend not reachable — will show error on conversion attempt
+  }
+})();
+</script>
+</body>
+</html>

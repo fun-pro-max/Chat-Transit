@@ -1,0 +1,42 @@
+{
+  "name": "Chat Transit",
+  "short_name": "Transit",
+  "description": "Convert ChatGPT shared links into portable LLM reference files",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0f0a",
+  "theme_color": "#0c0f0a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Convert Link",
+      "short_name": "Convert",
+      "description": "Convert a ChatGPT share link to transit package",
+      "url": "/?action=convert"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Chat Transit Desktop"
+    }
+  ]
+}
